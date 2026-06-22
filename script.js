@@ -1,648 +1,454 @@
 (function () {
-  const DEFAULT_HERO = {
-    brandName: "VAP",
-    brandTagline: "THE OUTSOURCING EXPERTS",
-    titleLine1: "Blockbuster Sessions",
-    titleLine2: "— EOFY Edition",
-    dateText: "26 May 2026 | 1:00 PM – 4:00 PM AEST",
-    bookLink: "Book a 30-minute session",
-    hostName: "Brian Jones",
-    hostTitle: "Founder and CEO of VAP",
-    hostPhoto: "",
-    descP1: "Join VA Platinum's Blockbuster Session - a quick, impactful 30-minute interaction with our team members.",
-    descP2: "Per session is limited to one participant only. Participation will be on a first come, first served basis.",
-    descP3: 'Please notify us at <b>least 72 hours</b> in advance if you cannot attend.<br><b>Unnotified no-shows may impact your eligibility for future sessions.</b>',
-    topicsHint: "Kindly write topics and questions you would like to ask Brian Jones here:"
-  };
-
-  const HERO_KEY = "vap-hero-content";
-  const SLOTS_KEY = "vap-time-slots";
-
-  const DEFAULT_SLOTS = [
-    { value: "26 May 2026, 1:00 PM AEST", limit: 1 },
-    { value: "26 May 2026, 1:30 PM AEST", limit: 1 },
-    { value: "26 May 2026, 2:00 PM AEST", limit: 1 },
-    { value: "26 May 2026, 2:30 PM AEST", limit: 1 },
-    { value: "26 May 2026, 3:00 PM AEST", limit: 1 },
-    { value: "26 May 2026, 3:30 PM AEST", limit: 1 }
-  ];
-
-  let heroState = { ...DEFAULT_HERO };
   let slots = [];
-  let entries = [];
-  let isEditing = false;
-  let autosaveTimer = null;
+  let registrations = [];
+  let editMode = false;
+  let bannerSrc = "";
 
-  const editableIds = [
-    "brandName",
-    "brandTagline",
-    "titleLine1",
-    "titleLine2",
-    "dateText",
-    "bookLink",
-    "hostName",
-    "hostTitle",
-    "descP1",
-    "descP2",
-    "topicsHint"
-  ];
+  const $ = id => document.getElementById(id);
+  const editables = () => document.querySelectorAll("[data-key]");
 
-  const statusEl = document.getElementById("saveStatus");
-  const editBtn = document.getElementById("editPageBtn");
-  const resetBtn = document.getElementById("resetBtn");
-  const changePhotoBtn = document.getElementById("changePhotoBtn");
-  const photoInput = document.getElementById("photoInput");
-  const slotManager = document.getElementById("slotManager");
-  const slotRows = document.getElementById("slotRows");
-  const addSlotBtn = document.getElementById("addSlotBtn");
-  const newSlotDate = document.getElementById("newSlotDate");
-  const newSlotTime = document.getElementById("newSlotTime");
-  const newSlotLimit = document.getElementById("newSlotLimit");
-  const fSlotSelect = document.getElementById("fSlot");
-  const form = document.getElementById("bookingForm");
-  const formMsg = document.getElementById("formMsg");
-  const entriesList = document.getElementById("entriesList");
-  const saveAllBtn = document.getElementById("saveAllSlotsBtn");
+  const bannerImg = $("bannerImg");
+  const bannerPlaceholder = $("bannerPlaceholder");
+  const bannerOverlay = $("bannerOverlay");
+  const bannerFileInput = $("bannerFileInput");
+  const editBtn = $("editBtn");
+  const editBtnText = $("editBtnText");
+  const fSlot = $("f_slot");
+  const slotAvailability = $("slotAvailability");
+  const slotAvailabilityText = $("slotAvailabilityText");
+  const slotList = $("slotList");
 
-  function flashStatus(message, isError = false) {
-    if (!statusEl) return;
+  const newSlotInput = $("newSlotInput");
+  const newSlotDate = $("newSlotDate");
+  const newSlotTime = $("newSlotTime");
+  const newSlotCapacity = $("newSlotCapacity");
 
-    statusEl.textContent = message;
-    statusEl.style.color = isError ? "#ff9aa3" : "#9fb0c9";
-
-    setTimeout(() => {
-      if (statusEl.textContent === message) {
-        statusEl.textContent = "";
-      }
-    }, 2500);
+  function esc(s) {
+    const d = document.createElement("div");
+    d.textContent = s ?? "";
+    return d.innerHTML;
   }
 
-  function escapeHtml(text) {
-    return String(text || "").replace(/[&<>"']/g, function (match) {
-      return {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      }[match];
-    });
+  function buildSlotText(slot) {
+    const available = Number(slot.available ?? (slot.capacity - slot.booked));
+    return available > 0
+      ? `${slot.label} — ${available} available`
+      : `${slot.label} — FULL`;
   }
 
-  async function storageGet(key) {
-    const formData = new FormData();
-    formData.append("action", "get");
-    formData.append("key", key);
+  function updateSlotAvailability() {
+    const openCount = slots.filter(slot => Number(slot.available) > 0).length;
 
-    const response = await fetch("storage.php", {
-      method: "POST",
-      body: formData
-    });
+    if (!slotAvailability || !slotAvailabilityText) return;
 
-    const data = await response.json();
-    return data.value;
+    slotAvailabilityText.textContent =
+      openCount > 0 ? `${openCount} available` : "No slots available";
+
+    slotAvailability.style.opacity = openCount > 0 ? "1" : "0.6";
   }
 
-  async function storageSet(key, value) {
-    const formData = new FormData();
-    formData.append("action", "set");
-    formData.append("key", key);
-    formData.append("value", value);
+  function renderDropdown() {
+    if (!fSlot) return;
 
-    const response = await fetch("storage.php", {
-      method: "POST",
-      body: formData
-    });
+    fSlot.innerHTML = '<option value="">— Select a time slot —</option>';
 
-    const data = await response.json();
-    return data.success;
-  }
+    slots.forEach(slot => {
+      const available = Number(slot.available);
 
-  async function storageDelete(key) {
-    const formData = new FormData();
-    formData.append("action", "delete");
-    formData.append("key", key);
-
-    const response = await fetch("storage.php", {
-      method: "POST",
-      body: formData
-    });
-
-    const data = await response.json();
-    return data.success;
-  }
-
-  function renderHero() {
-    editableIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = heroState[id] || "";
-    });
-
-    const descP3 = document.getElementById("descP3");
-    if (descP3) descP3.innerHTML = heroState.descP3 || "";
-
-    const hostPhotoWrap = document.getElementById("hostPhotoWrap");
-
-    if (hostPhotoWrap) {
-      if (heroState.hostPhoto) {
-        hostPhotoWrap.innerHTML = `<img src="${heroState.hostPhoto}" alt="${escapeHtml(heroState.hostName)}">`;
-      } else {
-        hostPhotoWrap.innerHTML = `
-          <div id="noPhotoState">
-            <span class="ph-icon">👤</span>
-            <span>No Photo</span>
-          </div>
-        `;
-      }
-    }
-  }
-
-  async function loadHero() {
-    try {
-      const raw = await storageGet(HERO_KEY);
-
-      if (raw) {
-        heroState = { ...DEFAULT_HERO, ...JSON.parse(raw) };
-      }
-    } catch (error) {
-      heroState = { ...DEFAULT_HERO };
-    }
-
-    renderHero();
-  }
-
-  async function saveHero() {
-    editableIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) heroState[id] = el.textContent.trim();
-    });
-
-    const descP3 = document.getElementById("descP3");
-    if (descP3) heroState.descP3 = descP3.innerHTML;
-
-    const ok = await storageSet(HERO_KEY, JSON.stringify(heroState));
-    flashStatus(ok ? "Page changes saved" : "Could not save changes", !ok);
-  }
-
-  async function resetHero() {
-    heroState = { ...DEFAULT_HERO };
-    await storageDelete(HERO_KEY);
-    renderHero();
-    flashStatus("Reset to default");
-  }
-
-  function setEditing(on) {
-    isEditing = on;
-
-    if (editBtn) {
-      editBtn.textContent = on ? "✓ Done Editing" : "✏ Edit Page";
-      editBtn.classList.toggle("is-active", on);
-    }
-
-    if (changePhotoBtn) {
-      changePhotoBtn.style.display = on ? "inline-block" : "none";
-    }
-
-    editableIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.setAttribute("contenteditable", on ? "true" : "false");
-    });
-
-    const descP3 = document.getElementById("descP3");
-    if (descP3) descP3.setAttribute("contenteditable", on ? "true" : "false");
-
-    if (slotManager) {
-      slotManager.style.display = on ? "block" : "none";
-    }
-  }
-
-  async function loadSlots() {
-    try {
-      const raw = await storageGet(SLOTS_KEY);
-
-      if (raw) {
-        // support legacy array-of-strings and new array-of-objects
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length && typeof parsed[0] === "string") {
-          slots = parsed.map((s) => ({ value: s, limit: 1 }));
-        } else {
-          slots = parsed;
-        }
-      } else {
-        slots = [...DEFAULT_SLOTS];
-        await storageSet(SLOTS_KEY, JSON.stringify(slots));
-      }
-    } catch (error) {
-      slots = [...DEFAULT_SLOTS];
-    }
-
-    renderSlots();
-    populateSlotSelect();
-  }
-
-  async function saveSlots() {
-    // show global saving toast
-    const savingToast = showToast('Saving time slots...', { type: 'saving', persistent: true });
-    const ok = await storageSet(SLOTS_KEY, JSON.stringify(slots));
-    console.log('saveSlots', slots, ok);
-    // remove saving toast and show result
-    if (savingToast) savingToast.remove();
-    if (ok) {
-      showToast('Time slots saved', { type: 'success', duration: 1800 });
-      flashStatus('Time slots saved');
-    } else {
-      showToast('Could not save time slots', { type: 'error', duration: 3000 });
-      flashStatus('Could not save time slots', true);
-    }
-
-    return ok;
-  }
-
-  function showToast(message, opts = {}) {
-    const { type = 'info', duration = 2200, persistent = false } = opts;
-    const container = document.getElementById('toastContainer');
-    if (!container) return null;
-
-    const el = document.createElement('div');
-    el.className = `toast ${type === 'success' ? 'success' : type === 'error' ? 'error' : ''}`;
-
-    if (type === 'saving') {
-      const spinner = document.createElement('span');
-      spinner.className = 'spinner';
-      el.appendChild(spinner);
-    }
-
-    const text = document.createElement('div');
-    text.textContent = message;
-    el.appendChild(text);
-
-    container.appendChild(el);
-
-    if (!persistent) {
-      setTimeout(() => {
-        el.remove();
-      }, duration);
-    }
-
-    return el;
-  }
-
-  function populateSlotSelect() {
-    if (!fSlotSelect) return;
-
-    const currentValue = fSlotSelect.value;
-
-    fSlotSelect.innerHTML = `<option value="">— Select a time slot —</option>`;
-
-    slots.forEach((slot) => {
-      const booked = entries.filter((e) => e.slot_datetime === slot.value).length;
-      const available = Math.max(0, (slot.limit || 0) - booked);
+      if (available <= 0) return;
 
       const option = document.createElement("option");
-      option.value = slot.value;
-      option.textContent = `${slot.value}${available > 0 ? ` — ${available} available` : ` — FULL`}`;
-      if (available === 0) option.disabled = true;
-      fSlotSelect.appendChild(option);
+      option.value = slot.label;
+      option.textContent = buildSlotText(slot);
+      fSlot.appendChild(option);
     });
 
-    if (slots.some(s => s.value === currentValue)) {
-      fSlotSelect.value = currentValue;
-    }
+    updateSlotAvailability();
   }
 
-  function renderSlots() {
-    if (!slotRows) return;
+  function renderRegs() {
+    const list = $("regList");
+    const empty = $("regEmpty");
 
-    if (!slots.length) {
-      slotRows.innerHTML = `<div class="empty-state">No time slots yet. Add one below.</div>`;
+    if (!list || !empty) return;
+
+    list.innerHTML = "";
+
+    if (!registrations.length) {
+      list.appendChild(empty);
       return;
     }
 
-    slotRows.innerHTML = "";
+    registrations.forEach(r => {
+      const d = document.createElement("div");
+      d.className = "reg-item";
 
-    slots.forEach((slot, index) => {
+      d.innerHTML = `
+        <div class="reg-header">
+          <span class="reg-name">${esc(r.firstName)} ${esc(r.lastName)} — ${esc(r.company)}</span>
+          <span class="reg-slot">${esc(r.slot)}</span>
+        </div>
+        <div class="reg-meta">${esc(r.email)} · ${esc(r.phone)}</div>
+        <div class="reg-topics">${esc(r.topics)}</div>
+      `;
+
+      list.appendChild(d);
+    });
+  }
+
+  async function loadSlotsFromDatabase() {
+    try {
+      const res = await fetch("get_slots.php");
+      const data = await res.json();
+
+      if (data.success === false) {
+        alert(data.message);
+        return;
+      }
+
+      slots = data.map(slot => ({
+        id: Number(slot.id),
+        label: slot.label,
+        capacity: Number(slot.capacity),
+        booked: Number(slot.booked),
+        available: Number(slot.available)
+      }));
+
+      renderDropdown();
+      renderSlotEditor();
+    } catch (error) {
+      console.error("Error loading slots:", error);
+      alert("Cannot load slots from database.");
+    }
+  }
+
+  async function loadBookingsFromDatabase() {
+    try {
+      const res = await fetch("get_bookings.php");
+      const data = await res.json();
+
+      if (data.success === false) {
+        alert(data.message);
+        return;
+      }
+
+      registrations = data.map(b => ({
+        firstName: b.first_name,
+        lastName: b.last_name,
+        company: b.company_name ?? b.company,
+        email: b.email,
+        phone: b.phone,
+        slot: b.slot_datetime ?? b.slot_label,
+        topics: b.topics
+      }));
+
+      renderRegs();
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+      alert("Cannot load bookings from database.");
+    }
+  }
+
+  function renderSlotEditor() {
+    if (!slotList) return;
+
+    slotList.innerHTML = "";
+
+    slots.forEach(slot => {
+      const booked = Number(slot.booked || 0);
+      const capacity = Number(slot.capacity || 1);
+      const available = Math.max(capacity - booked, 0);
+
       const row = document.createElement("div");
       row.className = "slot-row";
-      row.dataset.index = index;
-
-      // compute remaining and booked based on current entries
-      const booked = entries.filter((e) => e.slot_datetime === slot.value).length;
-      const remaining = Math.max(0, (slot.limit || 0) - booked);
 
       row.innerHTML = `
-        <input type="text" value="${escapeHtml(slot.value)}" data-role="slot-text">
-        <input type="number" min="1" value="${escapeHtml(slot.limit)}" data-role="slot-limit" style="width:80px;margin-left:8px;">
-        <button type="button" class="icon-btn" data-action="save-slot">Save</button>
-        <button type="button" class="icon-btn danger" data-action="delete-slot">Delete</button>
-        <span class="booked-badge" aria-hidden="true">${booked} / ${slot.limit} booked</span>
-        <span class="remaining-badge" aria-hidden="true">${remaining} left</span>
-        <span class="saved-indicator" aria-hidden="true"><span class="check">✓</span>Saved</span>
-      `;
-
-      slotRows.appendChild(row);
-    });
-  }
-
-  async function loadEntries() {
-    try {
-      const response = await fetch("get_bookings.php");
-      const data = await response.json();
-
-      entries = data.success ? data.bookings : [];
-    } catch (error) {
-      entries = [];
-    }
-
-    renderEntries();
-    // update slot availability UI after entries load
-    populateSlotSelect();
-    // also refresh admin slot remaining counts
-    if (slotManager && slotManager.style.display !== "none") {
-      renderSlots();
-    }
-  }
-
-  function renderEntries() {
-    if (!entriesList) return;
-
-    if (!entries.length) {
-      entriesList.innerHTML = `<div class="empty-state">No submissions yet.</div>`;
-      return;
-    }
-
-    entriesList.innerHTML = "";
-
-    entries.forEach((entry) => {
-      const card = document.createElement("div");
-      card.className = "entry-card";
-
-      card.innerHTML = `
-        <div class="top-row">
-          <div class="name">
-            ${escapeHtml(entry.first_name)} ${escapeHtml(entry.last_name)} — ${escapeHtml(entry.company_name)}
-          </div>
-          <span class="slot-pill">${escapeHtml(entry.slot_datetime)}</span>
+        <div class="slot-row-main">
+          <input class="slot-row-text" type="text" value="${esc(slot.label)}">
+          <div class="slot-row-subtext">${booked} / ${capacity} booked</div>
         </div>
 
-        <div class="meta-line">
-          ${escapeHtml(entry.email)} · ${escapeHtml(entry.phone)}
-        </div>
-
-        <div class="topics">
-          ${escapeHtml(entry.topics)}
+        <div class="slot-row-controls">
+          <input class="slot-row-capacity" type="number" min="1" value="${capacity}">
+          <button class="slot-row-save" type="button">Save</button>
+          <button class="slot-del-btn" type="button">Delete</button>
+          <span class="slot-left-badge">${available} left</span>
         </div>
       `;
 
-      entriesList.appendChild(card);
+      const labelInput = row.querySelector(".slot-row-text");
+      const capacityInput = row.querySelector(".slot-row-capacity");
+      const saveBtn = row.querySelector(".slot-row-save");
+      const delBtn = row.querySelector(".slot-del-btn");
+
+      saveBtn.addEventListener("click", async () => {
+        const newLabel = labelInput.value.trim();
+        const newCapacity = Math.max(1, Number(capacityInput.value));
+
+        if (!newLabel) {
+          alert("Slot label is required.");
+          return;
+        }
+
+        const fd = new FormData();
+        fd.append("id", slot.id);
+        fd.append("label", newLabel);
+        fd.append("capacity", newCapacity);
+
+        try {
+          const res = await fetch("update_slot.php", {
+            method: "POST",
+            body: fd
+          });
+
+          const data = await res.json();
+          alert(data.message);
+
+          if (data.success) {
+            await loadSlotsFromDatabase();
+            await loadBookingsFromDatabase();
+          }
+        } catch (error) {
+          console.error("Update slot error:", error);
+          alert("Failed to update slot.");
+        }
+      });
+
+      delBtn.addEventListener("click", async () => {
+        if (booked > 0) {
+          alert("Cannot delete this slot because it already has bookings.");
+          return;
+        }
+
+        if (!confirm("Delete this slot?")) return;
+
+        const fd = new FormData();
+        fd.append("id", slot.id);
+
+        try {
+          const res = await fetch("delete_slot.php", {
+            method: "POST",
+            body: fd
+          });
+
+          const data = await res.json();
+          alert(data.message);
+
+          if (data.success) {
+            await loadSlotsFromDatabase();
+          }
+        } catch (error) {
+          console.error("Delete slot error:", error);
+          alert("Failed to delete slot.");
+        }
+      });
+
+      slotList.appendChild(row);
     });
   }
 
-  if (editBtn) {
-    editBtn.addEventListener("click", async () => {
-      if (isEditing) {
-        setEditing(false);
-        await saveHero();
-        // ensure any slot edits are saved when leaving edit mode
-        await saveSlots();
-      } else {
-        setEditing(true);
+  function createSlotLabel(dateStr, timeStr) {
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const [hour, minute] = timeStr.split(":").map(Number);
+
+    const start = new Date(year, month - 1, day, hour, minute);
+    const end = new Date(start.getTime() + 30 * 60000);
+
+    const dateText = start.toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric"
+    });
+
+    const timeText = start.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+
+    const endText = end.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+
+    return `${dateText} · ${timeText} – ${endText} AEST`;
+  }
+
+  if ($("addSlotBtn")) {
+    $("addSlotBtn").addEventListener("click", async () => {
+      const dateVal = newSlotDate.value;
+      const timeVal = newSlotTime.value;
+      const customText = newSlotInput.value.trim();
+
+      let slotLabel = "";
+
+      if (dateVal && timeVal) {
+        slotLabel = createSlotLabel(dateVal, timeVal);
+      } else if (customText) {
+        slotLabel = customText;
+      }
+
+      if (!slotLabel) {
+        alert("Please select date and time or enter a custom slot label.");
+        return;
+      }
+
+      const capacity = Math.max(1, Number(newSlotCapacity.value) || 1);
+
+      const fd = new FormData();
+      fd.append("label", slotLabel);
+      fd.append("capacity", capacity);
+
+      try {
+        const res = await fetch("add_slot.php", {
+          method: "POST",
+          body: fd
+        });
+
+        const data = await res.json();
+        alert(data.message);
+
+        if (data.success) {
+          newSlotInput.value = "";
+          newSlotDate.value = "";
+          newSlotTime.value = "";
+          newSlotCapacity.value = "1";
+
+          await loadSlotsFromDatabase();
+        }
+      } catch (error) {
+        console.error("Add slot error:", error);
+        alert("Failed to add slot.");
       }
     });
   }
 
-  if (resetBtn) {
-    resetBtn.addEventListener("click", async () => {
-      if (confirm("Reset page content to default?")) {
-        await resetHero();
-      }
+  function setEditable(on) {
+    editables().forEach(el => {
+      el.setAttribute("contenteditable", on ? "true" : "false");
     });
   }
 
-  if (changePhotoBtn && photoInput) {
-    changePhotoBtn.addEventListener("click", () => {
-      photoInput.click();
+  function applyBanner(src) {
+    if (!bannerImg || !bannerPlaceholder) return;
+
+    if (src) {
+      bannerImg.src = src;
+      bannerImg.style.display = "block";
+      bannerPlaceholder.style.display = "none";
+    } else {
+      bannerImg.style.display = "none";
+      bannerPlaceholder.style.display = "flex";
+    }
+  }
+
+  if (bannerOverlay && bannerFileInput) {
+    bannerOverlay.addEventListener("click", () => {
+      if (editMode) bannerFileInput.click();
     });
 
-    photoInput.addEventListener("change", () => {
-      const file = photoInput.files[0];
+    bannerFileInput.addEventListener("change", () => {
+      const file = bannerFileInput.files[0];
       if (!file) return;
 
       const reader = new FileReader();
 
-      reader.onload = async () => {
-        heroState.hostPhoto = reader.result;
-        renderHero();
-        await saveHero();
+      reader.onload = e => {
+        bannerSrc = e.target.result;
+        applyBanner(bannerSrc);
       };
 
       reader.readAsDataURL(file);
     });
   }
 
-  if (slotRows) {
-    slotRows.addEventListener("click", async (e) => {
-      const button = e.target.closest("button");
-      if (!button) return;
+  if (editBtn) {
+    editBtn.addEventListener("click", () => {
+      editMode = !editMode;
 
-      const row = e.target.closest(".slot-row");
-      if (!row) return;
-
-      const index = Number(row.dataset.index);
-      const action = button.dataset.action;
-
-      if (action === "save-slot") {
-        const input = row.querySelector('[data-role="slot-text"]');
-        const limitInput = row.querySelector('[data-role="slot-limit"]');
-        const value = input.value.trim();
-        const limit = Number(limitInput.value) || 1;
-
-        if (!value) return;
-
-        slots[index] = { value, limit };
-        renderSlots();
-        populateSlotSelect();
-        await saveSlots();
-        showSavedIndicator(index);
-      }
-
-      if (action === "delete-slot") {
-        if (!confirm("Remove this time slot?")) return;
-
-        slots.splice(index, 1);
-        renderSlots();
-        populateSlotSelect();
-        await saveSlots();
+      if (editMode) {
+        editBtn.classList.add("saving");
+        editBtnText.textContent = "Save Changes";
+        document.body.classList.add("edit-mode");
+        setEditable(true);
+        renderSlotEditor();
+      } else {
+        editBtn.classList.remove("saving");
+        editBtnText.textContent = "Edit Page";
+        document.body.classList.remove("edit-mode");
+        setEditable(false);
       }
     });
+  }
 
-    // auto-save when inputs lose focus (so admin doesn't have to click Save)
-    slotRows.addEventListener("blur", async (e) => {
-      const input = e.target.closest("input");
-      if (!input) return;
-
-      const row = e.target.closest(".slot-row");
-      if (!row) return;
-
-      const index = Number(row.dataset.index);
-      const textInput = row.querySelector('[data-role="slot-text"]');
-      const limitInput = row.querySelector('[data-role="slot-limit"]');
-      const value = textInput.value.trim();
-      const limit = Number(limitInput.value) || 1;
-
-      if (!value) return;
-
-      slots[index] = { value, limit };
-      await saveSlots();
-      populateSlotSelect();
-      showSavedIndicator(index);
-    }, true);
-
-    // live-update when admin types or changes limit so dropdown reflects changes immediately
-    slotRows.addEventListener('input', (e) => {
-      const input = e.target.closest('input');
-      if (!input) return;
-
-      const row = e.target.closest('.slot-row');
-      if (!row) return;
-
-      const index = Number(row.dataset.index);
-      const textInput = row.querySelector('[data-role="slot-text"]');
-      const limitInput = row.querySelector('[data-role="slot-limit"]');
-      const value = textInput.value.trim();
-      const limit = Number(limitInput.value) || 1;
-
-      // update in-memory slots and remaining badge
-      slots[index] = { value, limit };
-
-      const remainingBadge = row.querySelector('.remaining-badge');
-      const bookedBadge = row.querySelector('.booked-badge');
-      const booked = entries.filter((entry) => entry.slot_datetime === value).length;
-      const remaining = Math.max(0, (limit || 0) - booked);
-      if (remainingBadge) remainingBadge.textContent = `${remaining} left`;
-      if (bookedBadge) bookedBadge.textContent = `${booked} / ${limit} booked`;
-
-      // update dropdown text immediately
-      populateSlotSelect();
-
-      // debounce auto-save after typing stops
-      clearTimeout(autosaveTimer);
-      autosaveTimer = setTimeout(async () => {
-        const ok = await saveSlots();
-        if (ok) showSavedIndicator(index);
-      }, 900);
+  if ($("resetBtn")) {
+    $("resetBtn").addEventListener("click", () => {
+      alert("Reset is disabled while connected to database.");
     });
   }
 
-  function showSavedIndicator(index) {
-    const row = slotRows.querySelector(`.slot-row[data-index="${index}"]`);
-    if (!row) return;
-    const indicator = row.querySelector('.saved-indicator');
-    if (!indicator) return;
-    indicator.classList.add('show');
-    setTimeout(() => indicator.classList.remove('show'), 1400);
-  }
+  if ($("regToggleBtn")) {
+    const regToggleBtn = $("regToggleBtn");
+    const regContainer = $("regContainer");
 
-  if (saveAllBtn) {
-    saveAllBtn.addEventListener('click', async () => {
-      await saveSlots();
-      populateSlotSelect();
-      flashStatus('All slots saved');
-      // show indicator for all rows briefly
-      slots.forEach((_, i) => showSavedIndicator(i));
+    regToggleBtn.addEventListener("click", () => {
+      regContainer.classList.toggle("collapsed");
+      regToggleBtn.classList.toggle("collapsed");
     });
   }
 
-  function formatSlotLabel(dateStr, timeStr) {
-    try {
-      const d = new Date(`${dateStr}T${timeStr}`);
-      if (isNaN(d)) return `${dateStr} ${timeStr}`;
-
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const day = d.getDate();
-      const month = months[d.getMonth()];
-      const year = d.getFullYear();
-      let hours = d.getHours();
-      const minutes = d.getMinutes().toString().padStart(2, "0");
-      const ampm = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12 || 12;
-
-      return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm} AEST`;
-    } catch (e) {
-      return `${dateStr} ${timeStr}`;
-    }
-  }
-
-  if (addSlotBtn && newSlotDate && newSlotTime && newSlotLimit) {
-    addSlotBtn.addEventListener("click", async () => {
-      const dateVal = newSlotDate.value;
-      const timeVal = newSlotTime.value;
-      const limit = Number(newSlotLimit.value) || 1;
-
-      if (!dateVal || !timeVal) return;
-
-      const value = formatSlotLabel(dateVal, timeVal);
-
-      slots.push({ value, limit });
-
-      newSlotDate.value = "";
-      newSlotTime.value = "";
-      newSlotLimit.value = 1;
-
-      renderSlots();
-      populateSlotSelect();
-      await saveSlots();
-    });
-  }
-
-  if (form) {
-    form.addEventListener("submit", async (e) => {
+  if ($("bookingForm")) {
+    $("bookingForm").addEventListener("submit", async e => {
       e.preventDefault();
 
-      const formData = new FormData();
-      formData.append("first_name", document.getElementById("fFirst").value.trim());
-      formData.append("last_name", document.getElementById("fLast").value.trim());
-      formData.append("company_name", document.getElementById("fCompany").value.trim());
-      formData.append("email", document.getElementById("fEmail").value.trim());
-      formData.append("phone", document.getElementById("fPhone").value.trim());
-      formData.append("slot_datetime", document.getElementById("fSlot").value);
-      formData.append("topics", document.getElementById("fTopics").value.trim());
+      const v = {
+        firstName: $("f_firstName").value.trim(),
+        lastName: $("f_lastName").value.trim(),
+        company: $("f_company").value.trim(),
+        email: $("f_email").value.trim(),
+        phone: $("f_phone").value.trim(),
+        slot: fSlot.value,
+        topics: $("f_topics").value.trim()
+      };
+
+      if (Object.values(v).some(x => !x)) {
+        alert("Please fill in all required fields.");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append("firstName", v.firstName);
+      fd.append("lastName", v.lastName);
+      fd.append("company", v.company);
+      fd.append("email", v.email);
+      fd.append("phone", v.phone);
+      fd.append("slot", v.slot);
+      fd.append("topics", v.topics);
 
       try {
-        const response = await fetch("save_booking.php", {
+        const res = await fetch("submit_booking.php", {
           method: "POST",
-          body: formData
+          body: fd
         });
 
-        const result = await response.json();
+        const data = await res.json();
+        alert(data.message);
 
-        if (result.success) {
-          form.reset();
-
-          if (formMsg) {
-            formMsg.textContent = "✓ Thanks — your booking has been saved.";
-            formMsg.classList.add("show");
-
-            setTimeout(() => {
-              formMsg.classList.remove("show");
-            }, 3500);
-          }
-
-          await loadEntries();
-        } else {
-          alert(result.message || "Failed to save booking.");
+        if (data.success) {
+          e.target.reset();
+          await loadSlotsFromDatabase();
+          await loadBookingsFromDatabase();
         }
       } catch (error) {
-        alert("Error saving booking. Check your PHP and database connection.");
+        console.error("Submit error:", error);
+        alert("Submit failed. Check your PHP/XAMPP connection.");
       }
     });
   }
 
-  async function init() {
-    setEditing(false);
-    await loadHero();
-    await loadSlots();
-    await loadEntries();
-  }
-
-  init();
+  setEditable(false);
+  applyBanner("");
+  loadSlotsFromDatabase();
+  loadBookingsFromDatabase();
 })();

@@ -1,167 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blockbuster Sessions — EOFY Edition</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAP – Blockbuster Sessions</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+<!-- ═══ Admin Bar ═══ -->
 <div class="admin-bar">
-  <div class="admin-tag">ADMIN</div>
-  <button class="btn btn-edit" id="editPageBtn">✏ Edit Page</button>
-  <button class="btn btn-reset" id="resetBtn">⟲ Reset to Default</button>
-  <div class="admin-spacer"></div>
-  <div class="save-status" id="saveStatus"></div>
+  <div class="admin-label"><div class="admin-dot"></div> ADMIN</div>
+  <button class="btn btn-edit" id="editBtn">✎ <span id="editBtnText">Edit Page</span></button>
+  <button class="btn btn-reset" id="resetBtn">↺ Reset to Default</button>
 </div>
 
-<div id="toastContainer" aria-live="polite" style="position:fixed;top:18px;right:18px;z-index:9999"></div>
+<div class="edit-hint">
+  ✏️ <strong>Edit Mode</strong> — click the banner to upload an image · click highlighted text to edit · manage time slots below the dropdown · hit <strong>Save Changes</strong> when done.
+</div>
 
-<div class="page">
+<!-- ═══ Page ═══ -->
+<div class="page-wrap">
 
-  <section class="hero">
-    <div class="hero-main">
-      <div class="brand">
-        <span class="star">★</span>
-        <div class="brand-text">
-          <b id="brandName">VAP</b>
-          <span id="brandTagline">THE OUTSOURCING EXPERTS</span>
-        </div>
-      </div>
-
-      <h1>
-        <span id="titleLine1">Blockbuster Sessions</span><br>
-        <span class="accent" id="titleLine2">— EOFY Edition</span>
-      </h1>
-
-      <div class="hero-meta">
-        <span>📅</span>
-        <span id="dateText">26 May 2026 | 1:00 PM – 4:00 PM AEST</span>
-      </div>
-
-      <a class="hero-link" id="bookLink">Book a 30-minute session</a>
+  <div class="banner-wrap" id="bannerWrap">
+    <div class="banner-upload-overlay" id="bannerOverlay">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      Click to replace banner image
+      <span class="upload-sub">Recommended: 1160 × 220 px · JPG or PNG</span>
     </div>
-
-    <div class="host-card">
-      <div class="host-photo-wrap" id="hostPhotoWrap">
-        <div id="noPhotoState">
-          <span class="ph-icon">👤</span>
-          <span>No Photo</span>
-        </div>
-      </div>
-
-      <button class="change-photo-btn" id="changePhotoBtn" style="display:none;">Change Photo</button>
-      <input type="file" id="photoInput" accept="image/*" style="display:none;">
-
-      <div class="host-info">
-        <b id="hostName">Brian Jones</b>
-        <span id="hostTitle">Founder and CEO of VAP</span>
-      </div>
+    <input type="file" id="bannerFileInput" accept="image/*">
+    <div class="banner-placeholder" id="bannerPlaceholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      No banner uploaded — click "Edit Page" then click here to upload your banner
     </div>
-  </section>
+    <img id="bannerImg" class="banner-img" src="" alt="Event banner" style="display:none;">
+  </div>
 
-  <section class="desc-card">
-    <p id="descP1">Join VA Platinum's Blockbuster Session - a quick, impactful 30-minute interaction with our team members.</p>
-    <p><em id="descP2">Per session is limited to one participant only. Participation will be on a first come, first served basis.</em></p>
-    <p id="descP3">Please notify us at <b>least 72 hours</b> in advance if you cannot attend.<br><b>Unnotified no-shows may impact your eligibility for future sessions.</b></p>
-  </section>
-
-  <section class="form-card">
-
-    <div class="slot-manager" id="slotManager" style="display:none;">
-      <div class="slot-manager-head">
-        <h2>MANAGE TIME SLOTS</h2>
-        <span class="tag">Admin only</span>
-        <button class="btn" id="saveAllSlotsBtn" style="margin-left:12px;">Save All</button>
-      </div>
-
-      <p class="hint-small">
-        Add, edit, or remove date/time slots. You can also set the booking limit per slot.
-      </p>
-
-      <div id="slotRows"></div>
-
-      <div class="slot-add-calendar">
-        <div class="field">
-          <label>Date</label>
-          <input type="date" id="newSlotDate">
-        </div>
-
-        <div class="field">
-          <label>Time</label>
-          <input type="time" id="newSlotTime">
-        </div>
-
-        <div class="field">
-          <label>Limit</label>
-          <input type="number" id="newSlotLimit" min="1" value="1">
-        </div>
-
-        <button type="button" id="addSlotBtn">+ Add Slot</button>
-      </div>
+  <div class="intro-block">
+    <div class="intro-editor-toolbar" id="introEditorToolbar">
+      <button type="button" class="editor-btn" data-command="bold" title="Bold"><strong>B</strong></button>
+      <button type="button" class="editor-btn" data-command="italic" title="Italic"><em>I</em></button>
+      <button type="button" class="editor-btn" data-command="underline" title="Underline"><u>U</u></button>
+      <div class="editor-separator"></div>
+      <button type="button" class="editor-btn" data-command="insertUnorderedList" title="Bullet List">•</button>
+      <button type="button" class="editor-btn" data-command="createLink" title="Add Link">Link</button>
     </div>
+    <div class="intro-text" contenteditable="false" data-key="introText" id="introText">Join VA Platinum's Blockbuster Session - a quick, impactful 30-minute interaction with our team members.
 
-    <h2>BOOK YOUR SESSION</h2>
+Per session is limited to one participant only. Participation will be on a first come, first served basis.
 
-    <form id="bookingForm">
-      <div class="grid-2">
+Please notify us at least 72 hours in advance if you cannot attend.
+
+Unnotified no-shows may impact your eligibility for future sessions.</div>
+  </div>
+  </div>
+
+</div>
+
+<!-- ═══ Booking Form ═══ -->
+<div class="cards-wrap">
+  <div class="card" id="bookingSection">
+    <div class="card-title" contenteditable="false" data-key="formHeading">BOOK YOUR SESSION</div>
+    <form id="bookingForm" novalidate>
+
+      <div class="form-grid-2">
         <div class="field">
           <label>First Name <span class="req">***</span></label>
-          <input type="text" id="fFirst" required>
+          <input type="text" id="f_firstName">
         </div>
-
         <div class="field">
           <label>Last Name <span class="req">***</span></label>
-          <input type="text" id="fLast" required>
+          <input type="text" id="f_lastName">
         </div>
       </div>
 
-      <div class="field">
-        <label>Company Name <span class="req">***</span></label>
-        <input type="text" id="fCompany" required>
+      <div class="form-grid-1">
+        <div class="field">
+          <label>Company Name <span class="req">***</span></label>
+          <input type="text" id="f_company">
+        </div>
       </div>
 
-      <div class="grid-2">
+      <div class="form-grid-2">
         <div class="field">
           <label>Email <span class="req">***</span></label>
-          <input type="email" id="fEmail" required>
+          <input type="email" id="f_email">
         </div>
-
         <div class="field">
           <label>Phone <span class="req">***</span></label>
-          <input type="tel" id="fPhone" required>
+          <input type="tel" id="f_phone">
         </div>
       </div>
 
-      <div class="field">
-        <label>Please pick a date and time <span class="req">***</span></label>
-        <select id="fSlot" required>
-          <option value="">— Select a time slot —</option>
-        </select>
+      <!-- TIME SLOT FIELD -->
+      <div class="form-grid-1">
+        <div class="field">
+          <label>Please pick a date and time <span class="req">***</span></label>
+          <div class="slot-select-wrap">
+            <select id="f_slot"></select>
+            <div class="slot-availability" id="slotAvailability">
+              <span class="slot-availability-dot"></span>
+              <span id="slotAvailabilityText">Available slots</span>
+            </div>
+          </div>
+
+          <!-- Admin slot manager (edit mode only) -->
+          <div class="slot-editor">
+            <div class="slot-editor-title">⚙ Manage Time Slots — add, edit, or remove date/time slots</div>
+            <div class="slot-add-calendar">
+              <input type="date" id="newSlotDate">
+              <input type="time" id="newSlotTime">
+              <input type="number" id="newSlotCapacity" min="1" value="1" aria-label="Slot capacity">
+              <button type="button" id="addSlotBtn">+ Add Slot</button>
+            </div>
+            <div class="slot-add-helper">Create a new slot and set its booking limit.</div>
+            <div class="slot-list" id="slotList"></div>
+            <div class="slot-add-row">
+              <input type="text" id="newSlotInput" placeholder="Or enter a custom slot label">
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="field">
-        <label>TOPICS TO ASK/DISCUSS <span class="req">***</span></label>
-        <span class="hint" id="topicsHint">Kindly write topics and questions you would like to ask Brian Jones here:</span>
-        <textarea id="fTopics" required></textarea>
+      <div class="form-grid-1">
+        <div class="field">
+          <label>TOPICS TO ASK/DISCUSS <span class="req">***</span></label>
+          <div class="topics-hint" contenteditable="false" data-key="topicsHint">Kindly write topics and questions you would like to ask Brian Jones here:</div>
+          <textarea id="f_topics"></textarea>
+        </div>
       </div>
 
-      <button type="submit" class="submit-btn">Submit</button>
-      <div class="form-msg" id="formMsg"></div>
+      <button type="submit" class="btn-submit">
+        <span contenteditable="false" data-key="submitLabel">Submit</span>
+      </button>
     </form>
-  </section>
+  </div>
 
-  <section class="submissions">
-    <div class="submissions-head">
-      <h2>SUBMITTED TOPICS &amp; REGISTRATIONS</h2>
+  <div class="card">
+    <div class="card-title-with-toggle">
+      <div class="card-title" contenteditable="false" data-key="regHeading">SUBMITTED TOPICS &amp; REGISTRATIONS</div>
+      <button class="reg-toggle-btn" id="regToggleBtn" title="Toggle registrations view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
     </div>
-
-    <div id="entriesList"></div>
-  </section>
-
+    <div class="reg-container" id="regContainer">
+      <div id="regList">
+        <div class="reg-empty" id="regEmpty">No registrations yet. Submitted bookings will appear here.</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="script.js"></script>
+
+
 </body>
 </html>

@@ -1,136 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Blockbuster Sessions — EOFY Edition</title>
-<link rel="stylesheet" href="style.css">
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blockbuster Sessions — EOFY Edition</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <div class="admin-bar">
-    <div class="admin-tag">ADMIN</div>
-    <button class="btn btn-edit" id="editPageBtn">✏ Edit Page</button>
-    <button class="btn btn-reset" id="resetBtn">⟲ Reset to Default</button>
-    <div class="admin-spacer"></div>
-    <div class="save-status" id="saveStatus"></div>
-  </div>
+<div class="admin-bar">
+  <div class="admin-tag">ADMIN</div>
+  <button class="btn btn-edit" id="editPageBtn">✏ Edit Page</button>
+  <button class="btn btn-reset" id="resetBtn">⟲ Reset to Default</button>
+  <div class="admin-spacer"></div>
+  <div class="save-status" id="saveStatus"></div>
+</div>
 
-  <div class="page">
+<div id="toastContainer" aria-live="polite" style="position:fixed;top:18px;right:18px;z-index:9999"></div>
 
-    <section class="hero" id="hero">
-      <div class="hero-main">
-        <div class="brand">
-          <span class="star">★</span>
-          <div class="brand-text">
-            <b id="brandName">VAP</b>
-            <span id="brandTagline">THE OUTSOURCING EXPERTS</span>
-          </div>
-        </div>
-        <h1>
-          <span id="titleLine1">Blockbuster Sessions</span><br/>
-          <span class="accent" id="titleLine2">— EOFY Edition</span>
-        </h1>
-        <div class="hero-meta">
-          <span class="ico">📅</span>
-          <span id="dateText">26 May 2026 | 1:00 PM – 4:00 PM AEST</span>
-        </div>
-        <a class="hero-link" id="bookLink">Book a 30-minute session</a>
-      </div>
+<div class="page">
 
-      <div class="host-card">
-        <div class="host-photo-wrap" id="hostPhotoWrap">
-          <div id="noPhotoState">
-            <span class="ph-icon">👤</span>
-            <span>No Photo</span>
-          </div>
-        </div>
-        <button class="change-photo-btn" id="changePhotoBtn" style="display:none;">Change Photo</button>
-        <input type="file" id="photoInput" accept="image/*" style="display:none;" />
-        <div class="host-info">
-          <b id="hostName">Brian Jones</b>
-          <span id="hostTitle">Founder and CEO of VAP</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="desc-card" id="descCard">
-      <p id="descP1">Join VA Platinum's Blockbuster Session - a quick, impactful 30-minute interaction with our team members. Explore key strategies for business growth and operational excellence in either a structured or open-topic format, tailored to empower your success.</p>
-      <p><em id="descP2">Per session is limited to one participant only. Participation will be on a first come, first served basis. Register now to avoid missing out!</em></p>
-      <p id="descP3">Due to high demand and limited availability, we kindly ask that you attend your scheduled session. If you are unable to attend, please notify us at <b>least 72 hours</b> in advance so your spot can be offered to another guest.<br/><b>Unnotified no-shows may impact your eligibility for future sessions.</b></p>
-    </section>
-
-    <section class="form-card">
-
-      <div class="slot-manager" id="slotManager" style="display:none;">
-        <div class="slot-manager-head">
-          <h2>MANAGE TIME SLOTS</h2>
-          <span class="tag">Admin only</span>
-        </div>
-        <p class="hint-small">Add, rename, or remove the date/time options guests can choose from below. Changes save to the database and update the form for everyone.</p>
-        <div id="slotRows"></div>
-        <div class="slot-add-row">
-          <input type="text" id="newSlotInput" placeholder="e.g. 26 May 2026, 4:00 PM AEST" />
-          <button type="button" id="addSlotBtn">+ Add Slot</button>
+  <section class="hero">
+    <div class="hero-main">
+      <div class="brand">
+        <span class="star">★</span>
+        <div class="brand-text">
+          <b id="brandName">VAP</b>
+          <span id="brandTagline">THE OUTSOURCING EXPERTS</span>
         </div>
       </div>
 
-      <h2>BOOK YOUR SESSION</h2>
-      <form id="bookingForm">
-        <div class="grid-2">
-          <div class="field">
-            <label>First Name <span class="req">***</span></label>
-            <input type="text" id="fFirst" placeholder="Enter your first name" required />
-          </div>
-          <div class="field">
-            <label>Last Name <span class="req">***</span></label>
-            <input type="text" id="fLast" placeholder="Enter your last name" required />
-          </div>
+      <h1>
+        <span id="titleLine1">Blockbuster Sessions</span><br>
+        <span class="accent" id="titleLine2">— EOFY Edition</span>
+      </h1>
+
+      <div class="hero-meta">
+        <span>📅</span>
+        <span id="dateText">26 May 2026 | 1:00 PM – 4:00 PM AEST</span>
+      </div>
+
+      <a class="hero-link" id="bookLink">Book a 30-minute session</a>
+    </div>
+
+    <div class="host-card">
+      <div class="host-photo-wrap" id="hostPhotoWrap">
+        <div id="noPhotoState">
+          <span class="ph-icon">👤</span>
+          <span>No Photo</span>
+        </div>
+      </div>
+
+      <button class="change-photo-btn" id="changePhotoBtn" style="display:none;">Change Photo</button>
+      <input type="file" id="photoInput" accept="image/*" style="display:none;">
+
+      <div class="host-info">
+        <b id="hostName">Brian Jones</b>
+        <span id="hostTitle">Founder and CEO of VAP</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="desc-card">
+    <p id="descP1">Join VA Platinum's Blockbuster Session - a quick, impactful 30-minute interaction with our team members.</p>
+    <p><em id="descP2">Per session is limited to one participant only. Participation will be on a first come, first served basis.</em></p>
+    <p id="descP3">Please notify us at <b>least 72 hours</b> in advance if you cannot attend.<br><b>Unnotified no-shows may impact your eligibility for future sessions.</b></p>
+  </section>
+
+  <section class="form-card">
+
+    <div class="slot-manager" id="slotManager" style="display:none;">
+      <div class="slot-manager-head">
+        <h2>MANAGE TIME SLOTS</h2>
+        <span class="tag">Admin only</span>
+        <button class="btn" id="saveAllSlotsBtn" style="margin-left:12px;">Save All</button>
+      </div>
+
+      <p class="hint-small">
+        Add, edit, or remove date/time slots. You can also set the booking limit per slot.
+      </p>
+
+      <div id="slotRows"></div>
+
+      <div class="slot-add-calendar">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="newSlotDate">
         </div>
 
         <div class="field">
-          <label>Company Name <span class="req">***</span></label>
-          <input type="text" id="fCompany" placeholder="Company Name" required />
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label>Email <span class="req">***</span></label>
-            <input type="email" id="fEmail" placeholder="Enter your email" required />
-          </div>
-          <div class="field">
-            <label>Phone <span class="req">***</span></label>
-            <input type="tel" id="fPhone" placeholder="Enter your phone number" required />
-          </div>
+          <label>Time</label>
+          <input type="time" id="newSlotTime">
         </div>
 
         <div class="field">
-          <label>Please pick a date and time <span class="req">***</span></label>
-          <select id="fSlot" required>
-            <option value="">— Select a time slot —</option>
-          </select>
+          <label>Limit</label>
+          <input type="number" id="newSlotLimit" min="1" value="1">
         </div>
 
-        <div class="field">
-          <label>TOPICS TO ASK/DISCUSS <span class="req">***</span></label>
-          <span class="hint" id="topicsHint">Kindly write topics and questions you would like to ask Brian Jones here:</span>
-          <textarea id="fTopics" placeholder="Type your topics or questions here..." required></textarea>
-        </div>
-
-        <button type="submit" class="submit-btn">Submit</button>
-        <div class="form-msg" id="formMsg">✓ Thanks — your session request has been added below.</div>
-      </form>
-    </section>
-
-    <section class="submissions">
-      <div class="submissions-head">
-        <h2>SUBMITTED TOPICS &amp; REGISTRATIONS</h2>
+        <button type="button" id="addSlotBtn">+ Add Slot</button>
       </div>
-      <div id="entriesList"></div>
-    </section>
+    </div>
 
-  </div>
+    <h2>BOOK YOUR SESSION</h2>
+
+    <form id="bookingForm">
+      <div class="grid-2">
+        <div class="field">
+          <label>First Name <span class="req">***</span></label>
+          <input type="text" id="fFirst" required>
+        </div>
+
+        <div class="field">
+          <label>Last Name <span class="req">***</span></label>
+          <input type="text" id="fLast" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Company Name <span class="req">***</span></label>
+        <input type="text" id="fCompany" required>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Email <span class="req">***</span></label>
+          <input type="email" id="fEmail" required>
+        </div>
+
+        <div class="field">
+          <label>Phone <span class="req">***</span></label>
+          <input type="tel" id="fPhone" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Please pick a date and time <span class="req">***</span></label>
+        <select id="fSlot" required>
+          <option value="">— Select a time slot —</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>TOPICS TO ASK/DISCUSS <span class="req">***</span></label>
+        <span class="hint" id="topicsHint">Kindly write topics and questions you would like to ask Brian Jones here:</span>
+        <textarea id="fTopics" required></textarea>
+      </div>
+
+      <button type="submit" class="submit-btn">Submit</button>
+      <div class="form-msg" id="formMsg"></div>
+    </form>
+  </section>
+
+  <section class="submissions">
+    <div class="submissions-head">
+      <h2>SUBMITTED TOPICS &amp; REGISTRATIONS</h2>
+    </div>
+
+    <div id="entriesList"></div>
+  </section>
+
+</div>
 
 <script src="script.js"></script>
 </body>

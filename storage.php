@@ -1,58 +1,72 @@
 <?php
 header("Content-Type: application/json");
-include "db.php";
+require "db.php";
 
 $action = $_POST["action"] ?? "";
 $key = $_POST["key"] ?? "";
 
-if($action === "get"){
-    $stmt = $conn->prepare("SELECT storage_value FROM page_storage WHERE storage_key = ?");
-    $stmt->bind_param("s", $key);
-    $stmt->execute();
-
-    $result = $stmt->get_result();
-
-    if($row = $result->fetch_assoc()){
-        echo json_encode([
-            "success" => true,
-            "value" => $row["storage_value"]
-        ]);
-    }else{
-        echo json_encode([
-            "success" => true,
-            "value" => null
-        ]);
-    }
-    exit;
+if ($action === "" || $key === "") {
+  echo json_encode([
+    "success" => false,
+    "message" => "Missing action or key"
+  ]);
+  exit;
 }
 
-if($action === "set"){
-    $value = $_POST["value"] ?? "";
+if ($action === "get") {
+  $stmt = $conn->prepare("SELECT data_value FROM page_storage WHERE data_key = ?");
+  $stmt->bind_param("s", $key);
+  $stmt->execute();
 
-    $stmt = $conn->prepare("
-        INSERT INTO page_storage (storage_key, storage_value)
-        VALUES (?, ?)
-        ON DUPLICATE KEY UPDATE storage_value = VALUES(storage_value)
-    ");
+  $result = $stmt->get_result();
 
-    $stmt->bind_param("ss", $key, $value);
-    $ok = $stmt->execute();
+  if ($row = $result->fetch_assoc()) {
+    echo json_encode([
+      "success" => true,
+      "value" => $row["data_value"]
+    ]);
+  } else {
+    echo json_encode([
+      "success" => true,
+      "value" => null
+    ]);
+  }
 
-    echo json_encode(["success" => $ok]);
-    exit;
+  exit;
 }
 
-if($action === "delete"){
-    $stmt = $conn->prepare("DELETE FROM page_storage WHERE storage_key = ?");
-    $stmt->bind_param("s", $key);
-    $ok = $stmt->execute();
+if ($action === "set") {
+  $value = $_POST["value"] ?? "";
 
-    echo json_encode(["success" => $ok]);
-    exit;
+  $stmt = $conn->prepare("
+    INSERT INTO page_storage (data_key, data_value)
+    VALUES (?, ?)
+    ON DUPLICATE KEY UPDATE data_value = VALUES(data_value)
+  ");
+
+  $stmt->bind_param("ss", $key, $value);
+  $success = $stmt->execute();
+
+  echo json_encode([
+    "success" => $success,
+    "message" => $success ? "Saved" : $stmt->error
+  ]);
+  exit;
+}
+
+if ($action === "delete") {
+  $stmt = $conn->prepare("DELETE FROM page_storage WHERE data_key = ?");
+  $stmt->bind_param("s", $key);
+  $success = $stmt->execute();
+
+  echo json_encode([
+    "success" => $success
+  ]);
+  exit;
 }
 
 echo json_encode([
-    "success" => false,
-    "message" => "Invalid action"
+  "success" => false,
+  "message" => "Invalid action"
 ]);
 ?>

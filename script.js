@@ -19,18 +19,19 @@
   const SLOTS_KEY = "vap-time-slots";
 
   const DEFAULT_SLOTS = [
-    "26 May 2026, 1:00 PM AEST",
-    "26 May 2026, 1:30 PM AEST",
-    "26 May 2026, 2:00 PM AEST",
-    "26 May 2026, 2:30 PM AEST",
-    "26 May 2026, 3:00 PM AEST",
-    "26 May 2026, 3:30 PM AEST"
+    { value: "26 May 2026, 1:00 PM AEST", limit: 1 },
+    { value: "26 May 2026, 1:30 PM AEST", limit: 1 },
+    { value: "26 May 2026, 2:00 PM AEST", limit: 1 },
+    { value: "26 May 2026, 2:30 PM AEST", limit: 1 },
+    { value: "26 May 2026, 3:00 PM AEST", limit: 1 },
+    { value: "26 May 2026, 3:30 PM AEST", limit: 1 }
   ];
 
   let heroState = { ...DEFAULT_HERO };
   let slots = [];
   let entries = [];
   let isEditing = false;
+  let autosaveTimer = null;
 
   const editableIds = [
     "brandName",
@@ -53,12 +54,15 @@
   const photoInput = document.getElementById("photoInput");
   const slotManager = document.getElementById("slotManager");
   const slotRows = document.getElementById("slotRows");
-  const newSlotInput = document.getElementById("newSlotInput");
   const addSlotBtn = document.getElementById("addSlotBtn");
+  const newSlotDate = document.getElementById("newSlotDate");
+  const newSlotTime = document.getElementById("newSlotTime");
+  const newSlotLimit = document.getElementById("newSlotLimit");
   const fSlotSelect = document.getElementById("fSlot");
   const form = document.getElementById("bookingForm");
   const formMsg = document.getElementById("formMsg");
   const entriesList = document.getElementById("entriesList");
+  const saveAllBtn = document.getElementById("saveAllSlotsBtn");
 
   function flashStatus(message, isError = false) {
     if (!statusEl) return;
@@ -217,7 +221,13 @@
       const raw = await storageGet(SLOTS_KEY);
 
       if (raw) {
-        slots = JSON.parse(raw);
+        // support legacy array-of-strings and new array-of-objects
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length && typeof parsed[0] === "string") {
+          slots = parsed.map((s) => ({ value: s, limit: 1 }));
+        } else {
+          slots = parsed;
+        }
       } else {
         slots = [...DEFAULT_SLOTS];
         await storageSet(SLOTS_KEY, JSON.stringify(slots));
@@ -231,8 +241,50 @@
   }
 
   async function saveSlots() {
+    // show global saving toast
+    const savingToast = showToast('Saving time slots...', { type: 'saving', persistent: true });
     const ok = await storageSet(SLOTS_KEY, JSON.stringify(slots));
-    flashStatus(ok ? "Time slots saved" : "Could not save time slots", !ok);
+    console.log('saveSlots', slots, ok);
+    // remove saving toast and show result
+    if (savingToast) savingToast.remove();
+    if (ok) {
+      showToast('Time slots saved', { type: 'success', duration: 1800 });
+      flashStatus('Time slots saved');
+    } else {
+      showToast('Could not save time slots', { type: 'error', duration: 3000 });
+      flashStatus('Could not save time slots', true);
+    }
+
+    return ok;
+  }
+
+  function showToast(message, opts = {}) {
+    const { type = 'info', duration = 2200, persistent = false } = opts;
+    const container = document.getElementById('toastContainer');
+    if (!container) return null;
+
+    const el = document.createElement('div');
+    el.className = `toast ${type === 'success' ? 'success' : type === 'error' ? 'error' : ''}`;
+
+    if (type === 'saving') {
+      const spinner = document.createElement('span');
+      spinner.className = 'spinner';
+      el.appendChild(spinner);
+    }
+
+    const text = document.createElement('div');
+    text.textContent = message;
+    el.appendChild(text);
+
+    container.appendChild(el);
+
+    if (!persistent) {
+      setTimeout(() => {
+        el.remove();
+      }, duration);
+    }
+
+    return el;
   }
 
   function populateSlotSelect() {
@@ -243,13 +295,17 @@
     fSlotSelect.innerHTML = `<option value="">— Select a time slot —</option>`;
 
     slots.forEach((slot) => {
+      const booked = entries.filter((e) => e.slot_datetime === slot.value).length;
+      const available = Math.max(0, (slot.limit || 0) - booked);
+
       const option = document.createElement("option");
-      option.value = slot;
-      option.textContent = slot;
+      option.value = slot.value;
+      option.textContent = `${slot.value}${available > 0 ? ` — ${available} available` : ` — FULL`}`;
+      if (available === 0) option.disabled = true;
       fSlotSelect.appendChild(option);
     });
 
-    if (slots.includes(currentValue)) {
+    if (slots.some(s => s.value === currentValue)) {
       fSlotSelect.value = currentValue;
     }
   }
@@ -269,10 +325,18 @@
       row.className = "slot-row";
       row.dataset.index = index;
 
+      // compute remaining and booked based on current entries
+      const booked = entries.filter((e) => e.slot_datetime === slot.value).length;
+      const remaining = Math.max(0, (slot.limit || 0) - booked);
+
       row.innerHTML = `
-        <input type="text" value="${escapeHtml(slot)}" data-role="slot-text">
+        <input type="text" value="${escapeHtml(slot.value)}" data-role="slot-text">
+        <input type="number" min="1" value="${escapeHtml(slot.limit)}" data-role="slot-limit" style="width:80px;margin-left:8px;">
         <button type="button" class="icon-btn" data-action="save-slot">Save</button>
         <button type="button" class="icon-btn danger" data-action="delete-slot">Delete</button>
+        <span class="booked-badge" aria-hidden="true">${booked} / ${slot.limit} booked</span>
+        <span class="remaining-badge" aria-hidden="true">${remaining} left</span>
+        <span class="saved-indicator" aria-hidden="true"><span class="check">✓</span>Saved</span>
       `;
 
       slotRows.appendChild(row);
@@ -290,6 +354,12 @@
     }
 
     renderEntries();
+    // update slot availability UI after entries load
+    populateSlotSelect();
+    // also refresh admin slot remaining counts
+    if (slotManager && slotManager.style.display !== "none") {
+      renderSlots();
+    }
   }
 
   function renderEntries() {
@@ -332,6 +402,8 @@
       if (isEditing) {
         setEditing(false);
         await saveHero();
+        // ensure any slot edits are saved when leaving edit mode
+        await saveSlots();
       } else {
         setEditing(true);
       }
@@ -380,14 +452,17 @@
 
       if (action === "save-slot") {
         const input = row.querySelector('[data-role="slot-text"]');
+        const limitInput = row.querySelector('[data-role="slot-limit"]');
         const value = input.value.trim();
+        const limit = Number(limitInput.value) || 1;
 
         if (!value) return;
 
-        slots[index] = value;
+        slots[index] = { value, limit };
         renderSlots();
         populateSlotSelect();
         await saveSlots();
+        showSavedIndicator(index);
       }
 
       if (action === "delete-slot") {
@@ -399,16 +474,119 @@
         await saveSlots();
       }
     });
-  }
 
-  if (addSlotBtn && newSlotInput) {
-    addSlotBtn.addEventListener("click", async () => {
-      const value = newSlotInput.value.trim();
+    // auto-save when inputs lose focus (so admin doesn't have to click Save)
+    slotRows.addEventListener("blur", async (e) => {
+      const input = e.target.closest("input");
+      if (!input) return;
+
+      const row = e.target.closest(".slot-row");
+      if (!row) return;
+
+      const index = Number(row.dataset.index);
+      const textInput = row.querySelector('[data-role="slot-text"]');
+      const limitInput = row.querySelector('[data-role="slot-limit"]');
+      const value = textInput.value.trim();
+      const limit = Number(limitInput.value) || 1;
 
       if (!value) return;
 
-      slots.push(value);
-      newSlotInput.value = "";
+      slots[index] = { value, limit };
+      await saveSlots();
+      populateSlotSelect();
+      showSavedIndicator(index);
+    }, true);
+
+    // live-update when admin types or changes limit so dropdown reflects changes immediately
+    slotRows.addEventListener('input', (e) => {
+      const input = e.target.closest('input');
+      if (!input) return;
+
+      const row = e.target.closest('.slot-row');
+      if (!row) return;
+
+      const index = Number(row.dataset.index);
+      const textInput = row.querySelector('[data-role="slot-text"]');
+      const limitInput = row.querySelector('[data-role="slot-limit"]');
+      const value = textInput.value.trim();
+      const limit = Number(limitInput.value) || 1;
+
+      // update in-memory slots and remaining badge
+      slots[index] = { value, limit };
+
+      const remainingBadge = row.querySelector('.remaining-badge');
+      const bookedBadge = row.querySelector('.booked-badge');
+      const booked = entries.filter((entry) => entry.slot_datetime === value).length;
+      const remaining = Math.max(0, (limit || 0) - booked);
+      if (remainingBadge) remainingBadge.textContent = `${remaining} left`;
+      if (bookedBadge) bookedBadge.textContent = `${booked} / ${limit} booked`;
+
+      // update dropdown text immediately
+      populateSlotSelect();
+
+      // debounce auto-save after typing stops
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(async () => {
+        const ok = await saveSlots();
+        if (ok) showSavedIndicator(index);
+      }, 900);
+    });
+  }
+
+  function showSavedIndicator(index) {
+    const row = slotRows.querySelector(`.slot-row[data-index="${index}"]`);
+    if (!row) return;
+    const indicator = row.querySelector('.saved-indicator');
+    if (!indicator) return;
+    indicator.classList.add('show');
+    setTimeout(() => indicator.classList.remove('show'), 1400);
+  }
+
+  if (saveAllBtn) {
+    saveAllBtn.addEventListener('click', async () => {
+      await saveSlots();
+      populateSlotSelect();
+      flashStatus('All slots saved');
+      // show indicator for all rows briefly
+      slots.forEach((_, i) => showSavedIndicator(i));
+    });
+  }
+
+  function formatSlotLabel(dateStr, timeStr) {
+    try {
+      const d = new Date(`${dateStr}T${timeStr}`);
+      if (isNaN(d)) return `${dateStr} ${timeStr}`;
+
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      let hours = d.getHours();
+      const minutes = d.getMinutes().toString().padStart(2, "0");
+      const ampm = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12;
+
+      return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm} AEST`;
+    } catch (e) {
+      return `${dateStr} ${timeStr}`;
+    }
+  }
+
+  if (addSlotBtn && newSlotDate && newSlotTime && newSlotLimit) {
+    addSlotBtn.addEventListener("click", async () => {
+      const dateVal = newSlotDate.value;
+      const timeVal = newSlotTime.value;
+      const limit = Number(newSlotLimit.value) || 1;
+
+      if (!dateVal || !timeVal) return;
+
+      const value = formatSlotLabel(dateVal, timeVal);
+
+      slots.push({ value, limit });
+
+      newSlotDate.value = "";
+      newSlotTime.value = "";
+      newSlotLimit.value = 1;
 
       renderSlots();
       populateSlotSelect();

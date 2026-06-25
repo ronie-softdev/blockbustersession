@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VAP – Blockbuster Sessions</title>
+<title>VAP – Admin Dashboard</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- ═══ Admin Bar ═══ -->
 <!-- ═══ Admin Bar ═══ -->
 <div class="admin-bar">
   <div class="admin-label"><div class="admin-dot"></div> ADMIN</div>
@@ -16,6 +15,7 @@
   <button class="btn btn-edit" id="editBtn">✎ <span id="editBtnText">Edit Page</span></button>
   <button class="btn btn-reset" id="resetBtn">↺ Reset to Default</button>
 
+  <a href="sessions.php" class="btn btn-reset">Session Management</a>
   <a href="logout.php" class="btn btn-logout">Logout</a>
 </div>
 
@@ -71,49 +71,10 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
 
 </div>
 
-<!-- ═══ Booking Form ═══ -->
+<!-- ═══ Admin Content ═══ -->
 <div class="cards-wrap">
 
-  <!-- SESSION MANAGEMENT -->
-  <div class="card session-management-card">
-    <div class="card-title">SESSION MANAGEMENT</div>
-
-    <div class="session-current-box">
-      <div>
-        <div class="session-label">Current Active Session</div>
-        <div class="session-title" id="currentSessionTitle">
-          June 2026 Blockbuster Session
-        </div>
-
-        <div class="session-status">
-          <span class="status-pill active">Active</span>
-          <span class="status-pill open">Booking Open</span>
-        </div>
-      </div>
-
-      <div class="session-actions">
-        <button type="button" class="btn-submit" id="createSessionBtn">
-          + Create New Session
-        </button>
-
-        <button type="button" class="btn btn-reset" id="closeBookingBtn">
-          Close Booking
-        </button>
-
-        <button type="button" class="btn btn-danger" id="archiveSessionBtn">
-          Archive Session
-        </button>
-      </div>
-    </div>
-
-    <div class="session-history">
-      <div class="session-label">Archived Sessions</div>
-      <div id="archivedSessionList" class="session-empty">
-        No archived sessions yet.
-      </div>
-    </div>
-  </div>
-
+  <!-- BOOKING PREVIEW / SLOT MANAGEMENT -->
   <div class="card" id="bookingSection">
     <div class="card-title" contenteditable="false" data-key="formHeading">BOOK YOUR SESSION</div>
 
@@ -150,7 +111,6 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
         </div>
       </div>
 
-      <!-- TIME SLOT FIELD -->
       <div class="form-grid-1">
         <div class="field">
           <label>Please pick a date and time <span class="req">***</span></label>
@@ -164,7 +124,6 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
             </div>
           </div>
 
-          <!-- Admin slot manager (edit mode only) -->
           <div class="slot-editor">
             <div class="slot-editor-title">⚙ Manage Time Slots — add, edit, or remove date/time slots</div>
 
@@ -201,6 +160,7 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
     </form>
   </div>
 
+  <!-- REGISTRATIONS -->
   <div class="card">
     <div class="card-title-with-toggle">
       <div class="card-title" contenteditable="false" data-key="regHeading">SUBMITTED TOPICS &amp; REGISTRATIONS</div>

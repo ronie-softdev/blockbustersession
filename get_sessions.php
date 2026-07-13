@@ -8,8 +8,7 @@ $sql = "
     title,
     status,
     booking_status,
-    is_current,
-    created_at
+    is_current
   FROM sessions
   ORDER BY is_current DESC, id DESC
 ";

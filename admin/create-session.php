@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VAP – Blockbuster Sessions</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../style.css">
 </head>
 <body>
 
@@ -94,14 +94,6 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
       <div class="session-actions">
         <button type="button" class="btn-submit" id="createSessionBtn">
           + Create New Session
-        </button>
-
-        <button type="button" class="btn btn-reset" id="closeBookingBtn">
-          Close Booking
-        </button>
-
-        <button type="button" class="btn btn-danger" id="archiveSessionBtn">
-          Archive Session
         </button>
       </div>
     </div>
@@ -221,7 +213,7 @@ Unnotified no-shows may impact your eligibility for future sessions.</div>
 
 </div>
 
-<script src="script.js"></script>
+<script src="../script.js"></script>
 
 </body>
 </html>

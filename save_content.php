@@ -6,10 +6,11 @@ header("Content-Type: application/json");
 $banner = $_POST['bannerSrc'] ?? '';
 $pageData = $_POST['pageData'] ?? '';
 
+// Update the current active session with the banner and description
 $stmt = $conn->prepare("
-    UPDATE page_content
+    UPDATE sessions
     SET banner = ?, description = ?
-    WHERE id = 1
+    WHERE is_current = 1
 ");
 
 $stmt->bind_param("ss", $banner, $pageData);

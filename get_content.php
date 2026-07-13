@@ -3,10 +3,12 @@ include "db.php";
 
 header("Content-Type: application/json");
 
+// Load content from the current active session
 $result = $conn->query("
     SELECT banner, description
-    FROM page_content
-    WHERE id = 1
+    FROM sessions
+    WHERE is_current = 1
+    LIMIT 1
 ");
 
 $row = $result->fetch_assoc();

@@ -43,7 +43,8 @@ try {
   echo json_encode([
     "success" => true,
     "message" => "New session created successfully.",
-    "session_id" => $newSessionId
+    "session_id" => $newSessionId,
+    "redirect" => "/blockbustersession/dashboard.php"
   ]);
 
 } catch (Exception $e) {

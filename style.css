@@ -346,6 +346,16 @@ body.edit-mode .intro-editor-toolbar {
   filter: brightness(1.08);
 }
 
+/* Hide the booking form submit button while in admin edit mode */
+body.edit-mode #bookingForm .btn-submit {
+  display: none !important;
+}
+
+/* Fallback: hide any submit-style buttons inside forms while editing */
+body.edit-mode form .btn-submit {
+  display: none !important;
+}
+
 /* Slot */
 .slot-select-wrap {
   display: flex;

@@ -1,4 +1,6 @@
 (function () {
+  console.log("script.js loaded");
+  
   let slots = [];
   let registrations = [];
   let editMode = false;
@@ -22,6 +24,7 @@
   const newSlotTime = $("newSlotTime");
   const newSlotCapacity = $("newSlotCapacity");
   const introText = $("introText");
+  const bookingFormEl = $("bookingForm");
 
   function esc(s) {
     const d = document.createElement("div");
@@ -51,7 +54,7 @@
 
   async function loadSessions() {
     try {
-      const res = await fetch("get_sessions.php?t=" + Date.now());
+      const res = await fetch("/blockbustersession/get_sessions.php?t=" + Date.now());
       const data = await res.json();
 
       if (!data.success) {
@@ -94,13 +97,16 @@
       }
     } catch (err) {
       console.error("Load sessions error:", err);
-      alert("Cannot load sessions.");
+      // Only show alert if the page actually has session elements
+      if ($("currentSessionTitle") || $("archivedSessionList")) {
+        alert("Cannot load sessions: " + err.message);
+      }
     }
   }
 
   async function loadPageContent() {
     try {
-      const res = await fetch("load_content.php?t=" + Date.now());
+      const res = await fetch("/blockbustersession/load_content.php?t=" + Date.now());
       const data = await res.json();
 
       bannerSrc = data.banner_src || "";
@@ -120,6 +126,7 @@
       }
     } catch (err) {
       console.error("Error loading page content:", err);
+      // Don't alert - this is not a critical failure
     }
   }
 
@@ -135,7 +142,7 @@
     fd.append("bannerSrc", bannerSrc || "");
     fd.append("pageData", JSON.stringify(pageData));
 
-    const res = await fetch("save_content.php", {
+    const res = await fetch("/blockbustersession/save_content.php", {
       method: "POST",
       body: fd
     });
@@ -302,7 +309,7 @@
         fd.append("capacity", newCapacity);
 
         try {
-          const res = await fetch("update_slot.php", {
+          const res = await fetch("/blockbustersession/update_slot.php", {
             method: "POST",
             body: fd
           });
@@ -332,7 +339,7 @@
         fd.append("id", slot.id);
 
         try {
-          const res = await fetch("delete_slot.php", {
+          const res = await fetch("/blockbustersession/delete_slot.php", {
             method: "POST",
             body: fd
           });
@@ -355,11 +362,11 @@
 
   async function loadSlotsFromDatabase() {
     try {
-      const res = await fetch("get_slots.php?t=" + Date.now());
+      const res = await fetch("/blockbustersession/get_slots.php?t=" + Date.now());
       const data = await res.json();
 
       if (data.success === false) {
-        alert(data.message);
+        console.warn("Load slots warning:", data.message);
         return;
       }
 
@@ -375,7 +382,7 @@
       renderSlotEditor();
     } catch (err) {
       console.error("Error loading slots:", err);
-      alert("Cannot load slots from database.");
+      // Don't alert - allow page to continue
     }
   }
 
@@ -411,11 +418,11 @@
 
   async function loadBookingsFromDatabase() {
     try {
-      const res = await fetch("get_bookings.php?t=" + Date.now());
+      const res = await fetch("/blockbustersession/get_bookings.php?t=" + Date.now());
       const data = await res.json();
 
       if (data.success === false) {
-        alert(data.message);
+        console.warn("Load bookings warning:", data.message);
         return;
       }
 
@@ -432,7 +439,7 @@
       renderRegs();
     } catch (err) {
       console.error("Error loading bookings:", err);
-      alert("Cannot load bookings from database.");
+      // Don't alert - allow page to continue
     }
   }
 
@@ -485,7 +492,7 @@
       fd.append("capacity", capacity);
 
       try {
-        const res = await fetch("add_slot.php", {
+        const res = await fetch("/blockbustersession/add_slot.php", {
           method: "POST",
           body: fd
         });
@@ -508,11 +515,15 @@
     });
   }
 
+  console.log("createSessionBtn element:", $("createSessionBtn"));
   if ($("createSessionBtn")) {
+    console.log("createSessionBtn found - attaching click handler");
     $("createSessionBtn").addEventListener("click", async () => {
       const title = prompt("Enter new session title:");
 
       if (!title || !title.trim()) return;
+
+      console.log("Creating session:", title);
 
       const fd = new FormData();
       fd.append("title", title.trim());
@@ -520,23 +531,25 @@
       fd.append("description", "");
 
       try {
-        const res = await fetch("create_session.php", {
+        const res = await fetch("/blockbustersession/create_sessions.php", {
           method: "POST",
           body: fd
         });
 
         const data = await res.json();
-        alert(data.message);
-
+        console.log("Create session response:", data);
+        
         if (data.success) {
-          await loadSessions();
-          await loadPageContent();
-          await loadSlotsFromDatabase();
-          await loadBookingsFromDatabase();
+          alert(data.message);
+          // Redirect immediately to dashboard to show new session
+          console.log("Redirecting to dashboard...");
+          window.location.href = "/blockbustersession/dashboard.php";
+        } else {
+          alert("Error: " + data.message);
         }
       } catch (err) {
         console.error("Create session error:", err);
-        alert("Failed to create session.");
+        alert("Failed to create session: " + err.message);
       }
     });
   }
@@ -551,6 +564,17 @@
         document.body.classList.add("edit-mode");
         setEditable(true);
         renderSlotEditor();
+
+        // Hide any form submit buttons while in edit mode (defensive JS in case CSS is cached)
+        document.querySelectorAll('form .btn-submit').forEach(b => {
+          b.dataset._wasDisplay = b.style.display || '';
+          b.style.display = 'none';
+          b.setAttribute('aria-hidden', 'true');
+          b.disabled = true;
+        });
+
+        // Remove the booking form submit handler while editing to fully disable submissions
+        if (bookingFormEl) bookingFormEl.removeEventListener('submit', handleBookingSubmit);
 
         return;
       }
@@ -570,6 +594,17 @@
       editBtnText.textContent = "Edit Page";
       document.body.classList.remove("edit-mode");
       setEditable(false);
+
+      // Restore any form submit buttons and re-enable handler when leaving edit mode
+      document.querySelectorAll('form .btn-submit').forEach(b => {
+        if (b.dataset._wasDisplay !== undefined) b.style.display = b.dataset._wasDisplay;
+        else b.style.display = '';
+        b.removeAttribute('aria-hidden');
+        b.disabled = false;
+        delete b.dataset._wasDisplay;
+      });
+
+      if (bookingFormEl) bookingFormEl.addEventListener('submit', handleBookingSubmit);
 
       document.querySelectorAll(".editor-btn").forEach(b => {
         b.classList.remove("active");
@@ -593,51 +628,54 @@
     });
   }
 
-  if ($("bookingForm")) {
-    $("bookingForm").addEventListener("submit", async e => {
-      e.preventDefault();
+  // Booking form submit handler (named so it can be added/removed)
+  async function handleBookingSubmit(e) {
+    e.preventDefault();
 
-      const v = {
-        firstName: $("f_firstName").value.trim(),
-        lastName: $("f_lastName").value.trim(),
-        company: $("f_company").value.trim(),
-        email: $("f_email").value.trim(),
-        phone: $("f_phone").value.trim(),
-        slot: fSlot ? fSlot.value : "",
-        topics: $("f_topics").value.trim()
-      };
+    const v = {
+      firstName: $("f_firstName").value.trim(),
+      lastName: $("f_lastName").value.trim(),
+      company: $("f_company").value.trim(),
+      email: $("f_email").value.trim(),
+      phone: $("f_phone").value.trim(),
+      slot: fSlot ? fSlot.value : "",
+      topics: $("f_topics").value.trim()
+    };
 
-      if (Object.values(v).some(x => !x)) {
-        alert("Please fill in all required fields.");
-        return;
-      }
+    if (Object.values(v).some(x => !x)) {
+      alert("Please fill in all required fields.");
+      return;
+    }
 
-      const fd = new FormData();
+    const fd = new FormData();
 
-      Object.entries(v).forEach(([k, val]) => {
-        fd.append(k, val);
+    Object.entries(v).forEach(([k, val]) => {
+      fd.append(k, val);
+    });
+
+    try {
+        const res = await fetch("/blockbustersession/submit_booking.php", {
+        method: "POST",
+        body: fd
       });
 
-      try {
-        const res = await fetch("submit_booking.php", {
-          method: "POST",
-          body: fd
-        });
+      const data = await res.json();
+      alert(data.message);
 
-        const data = await res.json();
-        alert(data.message);
+      if (data.success) {
+        e.target.reset();
 
-        if (data.success) {
-          e.target.reset();
-
-          await loadSlotsFromDatabase();
-          await loadBookingsFromDatabase();
-        }
-      } catch (err) {
-        console.error("Submit error:", err);
-        alert("Submit failed. Check your PHP/XAMPP connection.");
+        await loadSlotsFromDatabase();
+        await loadBookingsFromDatabase();
       }
-    });
+    } catch (err) {
+      console.error("Submit error:", err);
+      alert("Submit failed. Check your PHP/XAMPP connection.");
+    }
+  }
+
+  if (bookingFormEl) {
+    bookingFormEl.addEventListener('submit', handleBookingSubmit);
   }
 
   setEditable(false);
@@ -647,5 +685,7 @@
   loadPageContent();
   loadSlotsFromDatabase();
   loadBookingsFromDatabase();
+
+  console.log("script.js initialization complete");
 
 })();

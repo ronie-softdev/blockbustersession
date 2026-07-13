@@ -21,7 +21,7 @@ $result = $conn->query("SELECT * FROM sessions ORDER BY id DESC");
     </div>
 
     <div style="display:flex;gap:10px;">
-        <a href="create-session.php" class="btn btn-edit">
+        <a href="admin/create-session.php" class="btn btn-edit">
             + Create New Session
         </a>
 

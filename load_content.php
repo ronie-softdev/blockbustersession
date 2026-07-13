@@ -3,7 +3,8 @@ include "db.php";
 
 header("Content-Type: application/json");
 
-$result = $conn->query("SELECT banner, description FROM page_content WHERE id = 1");
+// Load content from the current active session
+$result = $conn->query("SELECT banner, description FROM sessions WHERE is_current = 1 LIMIT 1");
 $row = $result->fetch_assoc();
 
 echo json_encode([
